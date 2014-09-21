@@ -42,7 +42,7 @@ int setup (int *sock, struct sockaddr_in *sin) {
     return 0;
 }
 
-int handleconnectionection (int sock, struct sockaddr_in *sin) {
+int handleConnection (int sock, struct sockaddr_in *sin) {
     int accept_len;
     int len, connection;
     char buffer[MAX_LINE];
@@ -88,7 +88,7 @@ int main (int argc, char *argv[]) {
     for (;;) {
 
         // Handle one connectionection
-        result = handleconnectionection(sock, &sin);
+        result = handleConnection(sock, &sin);
         if (result < 0) {
             exit (1);
         }
