@@ -15,6 +15,67 @@
 // Menu action enum
 typedef enum {LISTFILES, GETFILE} menu_option;
 
+int read_line(int sock, char *buffer, int size)
+{
+    int len = 0;
+    char c;
+    int ret;
+
+    while (len < size)
+    {
+        ret = read(sock, &c, 1);
+        if (ret <= 0) {
+            buffer[len] = 0;
+            return len;
+        } else if (c == '\n') {
+            buffer[len] = 0;
+            return len;
+        }
+
+        if (c == '\0' && len == 0) {
+            continue;
+        }
+
+        buffer[len++] = c;
+    }
+
+    return -1;
+}
+
+int request_file_list (int sock, int connection) {
+    char *buffer;
+    int len;
+    const char *msg = "list_files\0";
+    send(sock, msg, strlen(msg) + 1, 0);
+    buffer = (char *) malloc (MAX_LINE);
+
+    // Continuously handle chunks
+    for(;;) {
+
+        // Receive the next chunk
+        len = read_line(sock, buffer, MAX_LINE - 1);
+
+        // If we receive the ending token, break
+        if (strcmp("*END-LISTING*", buffer) == 0) {
+            break;
+        }
+
+        if (len <= 0) {
+            break;
+        }
+
+        // Print the file received
+        printf("%s\n", buffer);
+    }
+
+    free(buffer);
+    return 0;
+}
+
+int request_file (int sock) {
+    return 0;
+}
+
 /**
  * Print the menu and return the appropriate action
  */
@@ -24,7 +85,7 @@ menu_option handle_input () {
     // Print the menu
     printf("Options:\n");
     printf("\t(1) List remote files\n");
-    printf("\t(2) Retreive remote files...\n");
+    printf("\t(2) Retrieve remote files...\n");
     printf("What would you like to do? ");
 
     // Get the users option
@@ -86,9 +147,7 @@ int setup (char *host, int *sock, int *conn) {
 
 int main (int argc, char* argv[]) {
     char *host;
-    char buffer[MAX_LINE];
-    int sock, conn, len;
-    int result;
+    int sock, conn, result;
     menu_option current_option;
 
     // Get server hostname
@@ -109,11 +168,14 @@ int main (int argc, char* argv[]) {
     current_option = handle_input();
     printf("Menu option is %d\n", current_option);
 
-    while (fgets(buffer, sizeof(buffer), stdin)) {
-        buffer[MAX_LINE-1] = '\0';
-        len = strlen(buffer) + 1;
-        printf("Sending %s\n", buffer);
-        send(sock, buffer, len, 0);
+    switch (current_option) {
+        case LISTFILES:
+            request_file_list(sock, conn);
+            break;
+        case GETFILE:
+            printf("nyi\n");
+            // TODO
+            break;
     }
 
     return 0;

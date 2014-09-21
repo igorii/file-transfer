@@ -16,6 +16,39 @@
 #define MAX_PENDING 5
 #define MAX_LINE 256
 
+int handle_file_request () {
+    printf("Handling file retrieve request\n");
+    return 0;
+}
+int handle_file_list_request (int sock, int client_sock) {
+    struct dirent *entry;
+    DIR *dirp;
+    const char *final_message = "*END-LISTING*\n";
+    printf("Handling file list request\n");
+
+    dirp = opendir(".");
+    if (dirp == NULL) {
+        perror("opendir");
+        return -1;
+    }
+
+    char buffer[MAX_LINE];
+
+    while((entry = readdir(dirp))) {
+        if (entry->d_name[0] == '.') {
+            continue;
+        }
+
+        snprintf(buffer, MAX_LINE, "%s\n", entry->d_name);
+        send(client_sock, buffer, strlen(buffer) + 1, 0);
+    }
+
+    snprintf(buffer, MAX_LINE, "%s", final_message);
+    send(client_sock, buffer, strlen(buffer) + 1, 0);
+    closedir(dirp);
+    return 0;
+}
+
 /**
  * Setup the socket for connections
  * @param sock A pointer to the socket
@@ -57,29 +90,35 @@ int setup (int *sock, struct sockaddr_in *sin) {
  */
 int handle_connection (int sock, struct sockaddr_in *sin) {
     unsigned int accept_len;
-    int len, connection;
+    int len, client_sock;
     char buffer[MAX_LINE];
 
-    // Accept one connectionection
+    // Accept one connection
     accept_len = sizeof(sin);
-    connection = accept(sock, (struct sockaddr *) &sin, &accept_len);
-    if (connection < 0) {
+    client_sock = accept(sock, (struct sockaddr *) &sin, &accept_len);
+    if (client_sock < 0) {
         perror("accept");
         return -1;
     }
 
-    // Wait for connection, then receive and print text
-    len = recv(connection, buffer, sizeof(buffer), 0);
-    while (len) {
+    // Continuously handle chunks
+    for(;;) {
 
-        // Handle the chunk
-        fputs(buffer, stdout);
+        // Receive the next chunk
+        len = recv(client_sock, buffer, sizeof(buffer), 0);
+        printf("Received %s [%d]\n", buffer, len);
+        if (len <= 0) {
+            break;
+        }
 
-        // Receive the next chun
-        len = recv(connection, buffer, sizeof(buffer), 0);
+        if (strcmp("list_files", buffer) == 0) {
+            handle_file_list_request(sock, client_sock);
+        } else {
+            printf("Unknown request\n");
+        }
     }
 
-    close(connection);
+    close(client_sock);
     return 0;
 }
 
@@ -93,10 +132,10 @@ int main (int argc, char *argv[]) {
         exit(1);
     }
 
-    // Continuously handle connectionections
+    // Continuously handle connections
     for (;;) {
 
-        // Handle one connectionection
+        // Handle one connection
         result = handle_connection(sock, &sin);
         if (result < 0) {
             exit (1);
