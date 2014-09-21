@@ -10,6 +10,8 @@
 /* Directory operations */
 #include <dirent.h>
 
+#define DEBUG 0
+
 #define SERVER_PORT 6005
 #define MAX_PENDING 5
 #define MAX_LINE 256
@@ -40,28 +42,34 @@ int setup (int *sock, struct sockaddr_in *sin) {
     return 0;
 }
 
-int handleConnection (int sock, struct sockaddr_in *sin) {
-    int len, conn;
+int handleconnectionection (int sock, struct sockaddr_in *sin) {
+    int accept_len;
+    int len, connection;
     char buffer[MAX_LINE];
 
+#if DEBUG > 0
     printf("Accepting on %d\n", sock);
+#endif
 
-    // Accept one connection
-    conn = accept(sock, (struct sockaddr *) &sin, &len);
-    if (conn < 0) {
+    // Accept one connectionection
+    accept_len = sizeof(sin);
+    connection = accept(sock, (struct sockaddr *) &sin, &accept_len);
+    if (connection < 0) {
         perror("accept");
         return -1;
     }
 
+#if DEBUG > 0
     printf("Receiving...\n");
+#endif
 
-    // Wait for connection, then receive and print text
-    while (len = recv(conn, buffer, sizeof(buffer), 0)) {
+    // Wait for connectionection, then receive and print text
+    while (len = recv(connection, buffer, sizeof(buffer), 0)) {
         printf("Received %d\n", len);
         fputs(buffer, stdout);
     }
 
-    close(conn);
+    close(connection);
 
     return 0;
 }
@@ -76,11 +84,11 @@ int main (int argc, char *argv[]) {
         exit(1);
     }
 
-    // Continuously handle connections
+    // Continuously handle connectionections
     for (;;) {
 
-        // Handle one connection
-        result = handleConnection(sock, &sin);
+        // Handle one connectionection
+        result = handleconnectionection(sock, &sin);
         if (result < 0) {
             exit (1);
         }
