@@ -54,6 +54,7 @@ int main (int argc, char* argv[]) {
     char *host;
     char buffer[MAX_LINE];
     int sock, conn, len;
+    int result;
 
     // Get server hostname
     if (argc == 2) {
@@ -64,7 +65,10 @@ int main (int argc, char* argv[]) {
     }
 
     // Initialize the connection
-    setup(host, &sock, &conn);
+    result = setup(host, &sock, &conn);
+    if (result < 0) {
+        exit(1);
+    }
 
     // main loop: get and send lines of text
     while (fgets(buffer, sizeof(buffer), stdin)) {
