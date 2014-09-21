@@ -16,24 +16,30 @@
 #define MAX_PENDING 5
 #define MAX_LINE 256
 
+/**
+ * Setup the socket for connections
+ * @param sock A pointer to the socket
+ * @param sin  A pointer to the sockaddr struct
+ * @return Success status
+ */
 int setup (int *sock, struct sockaddr_in *sin) {
-    int bindr, len;
+    int bind_result;
 
-    // build address data structure
+    // Build address data structure
     memset(sin, 0, sizeof(*sin));
     sin->sin_family      = AF_INET;
     sin->sin_addr.s_addr = INADDR_ANY;
     sin->sin_port        = htons(SERVER_PORT);
 
-    // setup passive open
+    // Open the socket
     *sock = socket(PF_INET, SOCK_STREAM, 0);
     if (*sock < 0) {
         perror("socket");
         return -1;
     }
 
-    bindr = bind(*sock, (struct sockaddr *) sin, sizeof(*sin));
-    if (bindr < 0) {
+    bind_result = bind(*sock, (struct sockaddr *) sin, sizeof(*sin));
+    if (bind_result < 0) {
         perror("bind");
         return -2;
     }
@@ -42,14 +48,17 @@ int setup (int *sock, struct sockaddr_in *sin) {
     return 0;
 }
 
-int handleConnection (int sock, struct sockaddr_in *sin) {
-    int accept_len;
+/**
+ * Accept a single connection on the given socket. The connection is
+ * closed when finished.
+ * @param sock The socket identifier to accept a connection on
+ * @param sin  A pointer to the struct sockaddr_in
+ * @return Success status
+ */
+int handle_connection (int sock, struct sockaddr_in *sin) {
+    unsigned int accept_len;
     int len, connection;
     char buffer[MAX_LINE];
-
-#if DEBUG > 0
-    printf("Accepting on %d\n", sock);
-#endif
 
     // Accept one connectionection
     accept_len = sizeof(sin);
@@ -59,18 +68,18 @@ int handleConnection (int sock, struct sockaddr_in *sin) {
         return -1;
     }
 
-#if DEBUG > 0
-    printf("Receiving...\n");
-#endif
+    // Wait for connection, then receive and print text
+    len = recv(connection, buffer, sizeof(buffer), 0);
+    while (len) {
 
-    // Wait for connectionection, then receive and print text
-    while (len = recv(connection, buffer, sizeof(buffer), 0)) {
-        printf("Received %d\n", len);
+        // Handle the chunk
         fputs(buffer, stdout);
+
+        // Receive the next chun
+        len = recv(connection, buffer, sizeof(buffer), 0);
     }
 
     close(connection);
-
     return 0;
 }
 
@@ -88,7 +97,7 @@ int main (int argc, char *argv[]) {
     for (;;) {
 
         // Handle one connectionection
-        result = handleConnection(sock, &sin);
+        result = handle_connection(sock, &sin);
         if (result < 0) {
             exit (1);
         }

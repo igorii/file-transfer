@@ -12,6 +12,43 @@
 #define SERVER_PORT 6005
 #define MAX_LINE 246
 
+// Menu action enum
+typedef enum {LISTFILES, GETFILE} menu_option;
+
+/**
+ * Print the menu and return the appropriate action
+ */
+menu_option handle_input () {
+    char input;
+
+    // Print the menu
+    printf("Options:\n");
+    printf("\t(1) List remote files\n");
+    printf("\t(2) Retreive remote files...\n");
+    printf("What would you like to do? ");
+
+    // Get the users option
+    input = getchar();
+
+    // Handle the option
+    switch (input) {
+        case '1':
+            return LISTFILES;
+        case '2':
+            return GETFILE;
+        default:
+            printf("Invalid option\n");
+            return handle_input();
+    }
+}
+
+/**
+ * Setup a socket and connection to the given host.
+ * @param host The remote host to connect to
+ * @param sock A pointer to the socket
+ * @param conn A pointer to the connection handle
+ * @return Success status
+ */
 int setup (char *host, int *sock, int *conn) {
     struct sockaddr_in sin;
     struct hostent *hp;
@@ -29,23 +66,20 @@ int setup (char *host, int *sock, int *conn) {
     bcopy(hp->h_addr, (char *)&sin.sin_addr, hp->h_length);
     sin.sin_port = htons(SERVER_PORT);
 
-    // active open
+    // Open the socket
     *sock = socket(PF_INET, SOCK_STREAM, 0);
     if (*sock < 0) {
         perror("socket");
         return -2;
     }
 
+    // Create the connection
     *conn = connect(*sock, (struct sockaddr *)&sin, sizeof(sin));
     if (*conn < 0) {
         perror("connect");
         close(*sock);
         return -3;
     }
-
-#if DEBUG > 0
-    printf("Connected...\n");
-#endif
 
     return 0;
 }
@@ -55,6 +89,7 @@ int main (int argc, char* argv[]) {
     char buffer[MAX_LINE];
     int sock, conn, len;
     int result;
+    menu_option current_option;
 
     // Get server hostname
     if (argc == 2) {
@@ -70,7 +105,10 @@ int main (int argc, char* argv[]) {
         exit(1);
     }
 
-    // main loop: get and send lines of text
+    // Request the desired action from the user
+    current_option = handle_input();
+    printf("Menu option is %d\n", current_option);
+
     while (fgets(buffer, sizeof(buffer), stdin)) {
         buffer[MAX_LINE-1] = '\0';
         len = strlen(buffer) + 1;
