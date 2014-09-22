@@ -1,6 +1,9 @@
-all:
-	gcc -o client client.c -Wall -Werror
-	gcc -o server server.c -Wall -Werror
+all: helper.o
+	gcc -o client client.c helper.o -Wall -Werror
+	gcc -o server server.c helper.o -Wall -Werror
+
+helper.o: helper.c helper.h
+	gcc -c helper.c
 
 clean:
 	rm -f client

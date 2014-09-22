@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/socket.h>
+//#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "helper.h"
 
 #define DEBUG 0
 
@@ -15,37 +17,10 @@
 // Menu action enum
 typedef enum {LISTFILES, GETFILE} menu_option;
 
-int read_line(int sock, char *buffer, int size)
-{
-    int len = 0;
-    char c;
-    int ret;
-
-    while (len < size)
-    {
-        ret = read(sock, &c, 1);
-        if (ret <= 0) {
-            buffer[len] = 0;
-            return len;
-        } else if (c == '\n') {
-            buffer[len] = 0;
-            return len;
-        }
-
-        if (c == '\0' && len == 0) {
-            continue;
-        }
-
-        buffer[len++] = c;
-    }
-
-    return -1;
-}
-
 int request_file_list (int sock, int connection) {
     char *buffer;
     int len;
-    const char *msg = "list_files\0";
+    const char *msg = "list_files\n";
     send(sock, msg, strlen(msg) + 1, 0);
     buffer = (char *) malloc (MAX_LINE);
 

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/socket.h>
+//#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -10,16 +10,27 @@
 /* Directory operations */
 #include <dirent.h>
 
+#include "helper.h"
+
 #define DEBUG 0
 
 #define SERVER_PORT 6005
 #define MAX_PENDING 5
 #define MAX_LINE 256
 
+/**
+ * Handles a request for an individual file
+ * @return Success status
+ */
 int handle_file_request () {
     printf("Handling file retrieve request\n");
     return 0;
 }
+
+/**
+ * Handles a request for a directory listing
+ * @return Success status
+ */
 int handle_file_list_request (int sock, int client_sock) {
     struct dirent *entry;
     DIR *dirp;
@@ -105,7 +116,8 @@ int handle_connection (int sock, struct sockaddr_in *sin) {
     for(;;) {
 
         // Receive the next chunk
-        len = recv(client_sock, buffer, sizeof(buffer), 0);
+        len = read_line(client_sock, buffer, sizeof(buffer));
+            //recv(client_sock, buffer, sizeof(buffer), 0);
         printf("Received %s [%d]\n", buffer, len);
         if (len <= 0) {
             break;
