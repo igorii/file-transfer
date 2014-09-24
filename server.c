@@ -1,16 +1,15 @@
 #include <stdio.h>
 #include <sys/types.h>
-//#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <string.h>
 
 /* Directory operations */
 #include <dirent.h>
 
 #include "helper.h"
+#include "protocol.h"
 
 #define DEBUG 0
 
@@ -28,43 +27,89 @@ int handle_file_request () {
 }
 
 /**
- * Handles a request for a directory listing
- * @return Success status
+ * Get the number of visible items in the directory
+ * @param dir        The name of the directory to chec
+ * @param num_items  Where the number of items will be placed
+ * @return           Success status
  */
-int handle_file_list_request (int sock, int client_sock) {
+int get_num_items_in_dir(char *dir, int *num_items) {
     struct dirent *entry;
     DIR *dirp;
-    const char *final_message = "*END-LISTING*\n";
-    printf("Handling file list request\n");
 
+    dirp = opendir(dir);
+    if (dirp == NULL) {
+        perror("opendir");
+        return -1;
+    }
+
+    *num_items = 0;
+    while ( (entry = readdir(dirp)) ) {
+        if (entry->d_name[0] == '.') {
+            continue;
+        }
+        ++*num_items;
+    }
+
+    closedir(dirp);
+    return 0;
+}
+
+/**
+ * Handles a request for a directory listing
+ * @param client_sock   The client socket
+ * @return              Success status
+ */
+int handle_file_list_request (int client_sock) {
+    struct dirent *entry;
+    DIR           *dirp;
+    int            num_items;
+    int            i;
+
+    // Get the number of visible items in the directory
+    if (get_num_items_in_dir(".", &num_items) < 0) {
+        return -1;
+    }
+
+    // Send the number of visible items
+    send_uint32(client_sock, (uint32_t)num_items);
+
+    // Open the directory before sending each item
     dirp = opendir(".");
     if (dirp == NULL) {
         perror("opendir");
         return -1;
     }
 
-    char buffer[MAX_LINE];
+    // Send each item
+    for (i = 0; i < num_items; ++i) {
+        entry = readdir(dirp);
 
-    while((entry = readdir(dirp))) {
+        // If the read failed, the item count changed somehow, so send an
+        // empty line to keep the client in sync with the protocol
+        if (!entry) {
+            send_line(client_sock, "", 0);
+        }
+
+        // Invisible entries should not count towards the total
         if (entry->d_name[0] == '.') {
+            --i;
             continue;
         }
 
-        snprintf(buffer, MAX_LINE, "%s\n", entry->d_name);
-        send(client_sock, buffer, strlen(buffer) + 1, 0);
+        // Otherwise, send the entry to the client
+        send_line(client_sock, entry->d_name, strlen(entry->d_name));
     }
 
-    snprintf(buffer, MAX_LINE, "%s", final_message);
-    send(client_sock, buffer, strlen(buffer) + 1, 0);
+    // Cleanup the directory
     closedir(dirp);
     return 0;
 }
 
 /**
  * Setup the socket for connections
- * @param sock A pointer to the socket
- * @param sin  A pointer to the sockaddr struct
- * @return Success status
+ * @param sock  A pointer to the socket
+ * @param sin   A pointer to the sockaddr struct
+ * @return      Success status
  */
 int setup (int *sock, struct sockaddr_in *sin) {
     int bind_result;
@@ -82,12 +127,15 @@ int setup (int *sock, struct sockaddr_in *sin) {
         return -1;
     }
 
-    bind_result = bind(*sock, (struct sockaddr *) sin, sizeof(*sin));
+    // Bind the socket
+    bind_result = bind(*sock, (struct sockaddr *) sin,
+                       sizeof(*sin));
     if (bind_result < 0) {
         perror("bind");
         return -2;
     }
 
+    // Start listening for connections
     listen(*sock, MAX_PENDING);
     return 0;
 }
@@ -101,32 +149,37 @@ int setup (int *sock, struct sockaddr_in *sin) {
  */
 int handle_connection (int sock, struct sockaddr_in *sin) {
     unsigned int accept_len;
-    int len, client_sock;
-    char buffer[MAX_LINE];
+    int          client_sock;
+    byte         code;
 
     // Accept one connection
-    accept_len = sizeof(sin);
-    client_sock = accept(sock, (struct sockaddr *) &sin, &accept_len);
+    accept_len  = sizeof(sin);
+    client_sock = accept(sock, (struct sockaddr *) &sin,
+                         &accept_len);
+
     if (client_sock < 0) {
         perror("accept");
         return -1;
     }
 
     // Continuously handle chunks
-    for(;;) {
+    for (;;) {
 
-        // Receive the next chunk
-        len = read_line(client_sock, buffer, sizeof(buffer));
-            //recv(client_sock, buffer, sizeof(buffer), 0);
-        printf("Received %s [%d]\n", buffer, len);
-        if (len <= 0) {
+        if (recv_byte(client_sock, &code) <= 0) {
             break;
         }
 
-        if (strcmp("list_files", buffer) == 0) {
-            handle_file_list_request(sock, client_sock);
-        } else {
-            printf("Unknown request\n");
+        // Handle the code appropriately
+        switch (code) {
+            case DIR_LIST_CODE:
+                handle_file_list_request(client_sock);
+                break;
+
+            case FILE_REQ_CODE:
+                break;
+
+            default:
+                fprintf(stderr, "Unknown request [%d]\n", (int)code);
         }
     }
 

@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include <sys/types.h>
-//#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "helper.h"
+#include "protocol.h"
 
 #define DEBUG 0
 
@@ -15,32 +14,36 @@
 #define MAX_LINE 246
 
 // Menu action enum
-typedef enum {LISTFILES, GETFILE} menu_option;
+typedef enum {QUIT, LISTFILES, GETFILE} menu_option;
 
+/**
+ * @return Success status
+ */
 int request_file_list (int sock, int connection) {
-    char *buffer;
-    int len;
-    const char *msg = "list_files\n";
-    send(sock, msg, strlen(msg) + 1, 0);
+    char    *buffer;
+    int      len;
+    int      i;
+    uint32_t num_items;
+
+    send_byte(sock, DIR_LIST_CODE);
+    len = recv_uint32(sock, &num_items);
+    if (len <= 0) {
+        return -1;
+    }
+
     buffer = (char *) malloc (MAX_LINE);
 
     // Continuously handle chunks
-    for(;;) {
+    for(i = 0; i < num_items; ++i) {
 
         // Receive the next chunk
-        len = read_line(sock, buffer, MAX_LINE - 1);
-
-        // If we receive the ending token, break
-        if (strcmp("*END-LISTING*", buffer) == 0) {
-            break;
-        }
-
+        len = recv_line(sock, buffer, MAX_LINE - 1);
         if (len <= 0) {
             break;
         }
 
         // Print the file received
-        printf("%s\n", buffer);
+        printf("- %s\n", buffer);
     }
 
     free(buffer);
@@ -53,41 +56,61 @@ int request_file (int sock) {
 
 /**
  * Print the menu and return the appropriate action
+ * @param hostname  The name of the host server
+ * @param arg       A character array for an optional command argument
+ * @param size      The size of `arg`
+ * @return          The menu option specified by the user
  */
-menu_option handle_input () {
-    char input;
+menu_option handle_input (char *hostname, char *arg, int size) {
+    char input[256]; // Input buffer
 
-    // Print the menu
-    printf("Options:\n");
-    printf("\t(1) List remote files\n");
-    printf("\t(2) Retrieve remote files...\n");
-    printf("What would you like to do? ");
+    // Commands
+    const char *file_list_cmd      = "ls\0";
+    const char *file_retrieval_cmd = "get\0";
+    const char *exit_cmd           = "exit\0";
 
-    // Get the users option
-    input = getchar();
+    // Printf the prompt
+    printf("file-serve(%s): ", hostname);
 
-    // Handle the option
-    switch (input) {
-        case '1':
-            return LISTFILES;
-        case '2':
-            return GETFILE;
-        default:
-            printf("Invalid option\n");
-            return handle_input();
+    // Get the user input
+    fgets(input, sizeof(input), stdin);
+
+    // Handle directory listing requests
+    if (strncmp(file_list_cmd, input, strlen(file_list_cmd)) == 0) {
+        return LISTFILES;
     }
+
+    // Handle file retrieval requests
+    else if (strncmp(file_retrieval_cmd, input,
+                strlen(file_retrieval_cmd)) == 0) {
+
+        // The input for get must be longer than the length of
+        // "get " since it requires a filename argument
+        if (strlen(input) > 4) {
+            memcpy(arg, input + 4, strlen(input) - 4);
+            return GETFILE;
+        } else {
+            fprintf(stderr, "\tUse: 'get <filename>'\n");
+        }
+
+    } else if (strncmp(exit_cmd, input, strlen(exit_cmd)) == 0) {
+        return QUIT;
+    }
+
+    // If none of the above was handled, just try again
+    return handle_input(hostname, arg, size);
 }
 
 /**
  * Setup a socket and connection to the given host.
- * @param host The remote host to connect to
- * @param sock A pointer to the socket
- * @param conn A pointer to the connection handle
- * @return Success status
+ * @param host  The remote host to connect to
+ * @param sock  A pointer to the socket
+ * @param conn  A pointer to the connection handle
+ * @return      Success status
  */
 int setup (char *host, int *sock, int *conn) {
-    struct sockaddr_in sin;
-    struct hostent *hp;
+    struct sockaddr_in  sin;
+    struct hostent     *hp;
 
     // Translate hostname
     hp = gethostbyname(host);
@@ -140,17 +163,29 @@ int main (int argc, char* argv[]) {
     }
 
     // Request the desired action from the user
-    current_option = handle_input();
-    printf("Menu option is %d\n", current_option);
+    char arg[256];
+    for (;;) {
+        current_option = handle_input(host, arg, sizeof(arg));
 
-    switch (current_option) {
-        case LISTFILES:
-            request_file_list(sock, conn);
-            break;
-        case GETFILE:
-            printf("nyi\n");
-            // TODO
-            break;
+        switch (current_option) {
+
+            case QUIT:
+                close(sock);
+                exit(1);
+                break;
+
+            case LISTFILES:
+                request_file_list(sock, conn);
+                break;
+
+            case GETFILE:
+                printf("nyi\n");
+                break;
+
+            default:
+                printf("nyi2\n");
+                break;
+        }
     }
 
     return 0;
