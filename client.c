@@ -50,7 +50,61 @@ int request_file_list (int sock, int connection) {
     return 0;
 }
 
-int request_file (int sock) {
+int request_file (int sock, char *filename) {
+    uint32_t file_length;
+    int recv_len;
+    byte response;
+    FILE *fp;
+
+    printf("Opening %s\n", filename);
+    fp = fopen(filename, "wb+");
+    if (!fp) {
+        return -1;
+    }
+
+    printf("Sending req code\n");
+
+    // Send the file request code
+    send_byte(sock, FILE_REQ_CODE);
+
+    printf("Receiving req code\n");
+
+    // Receive the incoming file acknowledgement
+    recv_len = recv_byte(sock, &response);
+
+    printf("Received length: %d\n", recv_len);
+    if (recv_len <= 0) {
+        return -1;
+    }
+
+    if (response != FILE_REQ_CODE) {
+        return -1;
+    }
+
+    printf("Sending filename\n");
+
+    // Send the file we are requesting
+    send_line(sock, filename, strlen(filename));
+
+    // Receive the incoming file length
+    recv_len = recv_uint32(sock, &file_length);
+    if (recv_len <= 0) {
+        return -1;
+    }
+
+    if (file_length == 0) {
+        fprintf(stderr, "[!!] Remote file does not exist or is empty\n");
+        return -1;
+    }
+
+    printf("Receiving %d bytes\n", file_length);
+    byte current_byte;
+    unsigned int i;
+    for (i = 0; i < file_length; ++i) {
+        recv_len = recv_byte(sock, &current_byte);
+        fwrite(&current_byte, 1, 1, fp);
+    }
+
     return 0;
 }
 
@@ -86,8 +140,11 @@ menu_option handle_input (char *hostname, char *arg, int size) {
 
         // The input for get must be longer than the length of
         // "get " since it requires a filename argument
+        //
+        // TODO - figure this out
         if (strlen(input) > 4) {
             memcpy(arg, input + 4, strlen(input) - 4);
+            arg[strlen(input) - 5] = '\0';
             return GETFILE;
         } else {
             fprintf(stderr, "\tUse: 'get <filename>'\n");
@@ -179,7 +236,7 @@ int main (int argc, char* argv[]) {
                 break;
 
             case GETFILE:
-                printf("nyi\n");
+                request_file(sock, arg);
                 break;
 
             default:

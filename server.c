@@ -4,8 +4,6 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <stdlib.h>
-
-/* Directory operations */
 #include <dirent.h>
 
 #include "helper.h"
@@ -21,8 +19,61 @@
  * Handles a request for an individual file
  * @return Success status
  */
-int handle_file_request () {
+int handle_file_request (int client_sock) {
     printf("Handling file retrieve request\n");
+
+    FILE *fp;
+    unsigned int file_length;
+    char filename[256];
+    int recv_len;
+    unsigned int i;
+    byte current_byte;
+
+    printf("Sending byte\n");
+
+    // Send the file request acknowledgement
+    send_byte(client_sock, FILE_REQ_CODE);
+
+    printf("Send byte\n");
+
+    // Receive the file name
+    recv_len = recv_line(client_sock, filename,
+            sizeof(filename));
+
+    printf("Request for %s\n", filename);
+
+    if (recv_len <= 0) {
+        return -1;
+    }
+
+
+    // Retrieve the file size
+    fp = fopen(filename, "rb");
+    if (!fp) {
+        send_uint32(client_sock, 0);
+        return -1;
+    }
+
+    fseek(fp, 0L, SEEK_END);
+    file_length = ftell(fp);
+
+    // Send the file size to the client
+    send_uint32(client_sock, file_length);
+
+    // Send each byte to the client
+    rewind(fp);
+    int read_len;
+    for (i = 0; i < file_length; ++i) {
+        read_len = fread(&current_byte, 1, 1, fp);
+        if (read_len <= 0) {
+            // send 0 to keep the client in sync
+            send_byte(client_sock, 0);
+            continue;
+        }
+
+        send_byte(client_sock, current_byte);
+    }
+
     return 0;
 }
 
@@ -129,7 +180,7 @@ int setup (int *sock, struct sockaddr_in *sin) {
 
     // Bind the socket
     bind_result = bind(*sock, (struct sockaddr *) sin,
-                       sizeof(*sin));
+            sizeof(*sin));
     if (bind_result < 0) {
         perror("bind");
         return -2;
@@ -155,7 +206,7 @@ int handle_connection (int sock, struct sockaddr_in *sin) {
     // Accept one connection
     accept_len  = sizeof(sin);
     client_sock = accept(sock, (struct sockaddr *) &sin,
-                         &accept_len);
+            &accept_len);
 
     if (client_sock < 0) {
         perror("accept");
@@ -176,6 +227,7 @@ int handle_connection (int sock, struct sockaddr_in *sin) {
                 break;
 
             case FILE_REQ_CODE:
+                handle_file_request(client_sock);
                 break;
 
             default:
