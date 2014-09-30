@@ -8,13 +8,8 @@
 #include "helper.h"
 #include "protocol.h"
 
-#define DEBUG 0
-
-#define SERVER_PORT 6005
-#define MAX_LINE 246
-
-// Menu action enum
-typedef enum {QUIT, LISTFILES, GETFILE} menu_option;
+/* Menu action enum */
+typedef enum {QUIT, LISTFILES, GETFILE, PUTFILE} menu_option;
 
 /**
  * @return Success status
@@ -25,18 +20,20 @@ int request_file_list (int sock, int connection) {
     int      i;
     uint32_t num_items;
 
+    // Send the operation code
     send_byte(sock, DIR_LIST_CODE);
+
+    // Store the number of files being received
     len = recv_uint32(sock, &num_items);
     if (len <= 0) {
         return -1;
     }
 
+    // Create a place to store the currently received file
     buffer = (char *) malloc (MAX_LINE);
 
-    // Continuously handle chunks
+    // Receive each file
     for(i = 0; i < num_items; ++i) {
-
-        // Receive the next chunk
         len = recv_line(sock, buffer, MAX_LINE - 1);
         if (len <= 0) {
             break;
@@ -50,63 +47,53 @@ int request_file_list (int sock, int connection) {
     return 0;
 }
 
-int request_file (int sock, char *filename) {
-    uint32_t file_length;
-    int recv_len;
-    byte response;
-    FILE *fp;
+int request_put (int sock, char *filename) {
+    byte         response;      // The acknowledgement from the other
 
-    printf("Opening %s\n", filename);
-    fp = fopen(filename, "wb+");
-    if (!fp) {
+    printf("Sending PUT code\n");
+    send_byte(sock, PUT_FILE_CODE);
+    printf("Receiving PUT code\n");
+
+    // Receive the incoming file acknowledgement
+    if (recv_byte(sock, &response) <= 0)
         return -1;
-    }
 
-    printf("Sending req code\n");
+    if (response != PUT_FILE_CODE)
+        return -1;
+
+    printf("Sending %s\n", filename);
+    send_file(sock, filename);
+    return 0;
+}
+
+
+/**
+ * Request a file to be written locally in the current directory
+ * @param sock     A socket connection
+ * @param filename The name of the file being requested
+ * @return Success status
+ */
+int request_file (int sock, char *filename) {
+    byte         response;      // The acknowledgement from the other
 
     // Send the file request code
     send_byte(sock, FILE_REQ_CODE);
 
-    printf("Receiving req code\n");
-
     // Receive the incoming file acknowledgement
-    recv_len = recv_byte(sock, &response);
-
-    printf("Received length: %d\n", recv_len);
-    if (recv_len <= 0) {
+    if (recv_byte(sock, &response) <= 0)
         return -1;
-    }
 
-    if (response != FILE_REQ_CODE) {
+    if (response != FILE_REQ_CODE)
         return -1;
-    }
-
-    printf("Sending filename\n");
 
     // Send the file we are requesting
     send_line(sock, filename, strlen(filename));
 
-    // Receive the incoming file length
-    recv_len = recv_uint32(sock, &file_length);
-    if (recv_len <= 0) {
-        return -1;
-    }
-
-    if (file_length == 0) {
-        fprintf(stderr, "[!!] Remote file does not exist or is empty\n");
-        return -1;
-    }
-
-    printf("Receiving %d bytes\n", file_length);
-    byte current_byte;
-    unsigned int i;
-    for (i = 0; i < file_length; ++i) {
-        recv_len = recv_byte(sock, &current_byte);
-        fwrite(&current_byte, 1, 1, fp);
-    }
-
+    printf("Calling receive_file\n");
+    recv_file(sock);
     return 0;
 }
+
 
 /**
  * Print the menu and return the appropriate action
@@ -121,6 +108,7 @@ menu_option handle_input (char *hostname, char *arg, int size) {
     // Commands
     const char *file_list_cmd      = "ls\0";
     const char *file_retrieval_cmd = "get\0";
+    const char *file_send_cmd      = "put\0";
     const char *exit_cmd           = "exit\0";
 
     // Printf the prompt
@@ -150,6 +138,18 @@ menu_option handle_input (char *hostname, char *arg, int size) {
             fprintf(stderr, "\tUse: 'get <filename>'\n");
         }
 
+    // Handle file send requests
+    } else if (strncmp(file_send_cmd, input,
+                strlen(file_send_cmd)) == 0) {
+
+        // TODO - figure this out
+        if (strlen(input) > 4) {
+            memcpy(arg, input + 4, strlen(input) - 4);
+            arg[strlen(input) - 5] = '\0';
+            return PUTFILE;
+        } else {
+            fprintf(stderr, "\tUse: 'put <filename>'\n");
+        }
     } else if (strncmp(exit_cmd, input, strlen(exit_cmd)) == 0) {
         return QUIT;
     }
@@ -237,6 +237,10 @@ int main (int argc, char* argv[]) {
 
             case GETFILE:
                 request_file(sock, arg);
+                break;
+
+            case PUTFILE:
+                request_put(sock, arg);
                 break;
 
             default:

@@ -9,72 +9,36 @@
 #include "helper.h"
 #include "protocol.h"
 
-#define DEBUG 0
-
-#define SERVER_PORT 6005
 #define MAX_PENDING 5
-#define MAX_LINE 256
 
 /**
  * Handles a request for an individual file
+ * @param client_sock A socket connection
  * @return Success status
  */
 int handle_file_request (int client_sock) {
-    printf("Handling file retrieve request\n");
-
-    FILE *fp;
-    unsigned int file_length;
-    char filename[256];
-    int recv_len;
-    unsigned int i;
-    byte current_byte;
-
-    printf("Sending byte\n");
+    char *filename;
+    filename = (char *) malloc (MAX_LINE);
 
     // Send the file request acknowledgement
     send_byte(client_sock, FILE_REQ_CODE);
 
-    printf("Send byte\n");
-
     // Receive the file name
-    recv_len = recv_line(client_sock, filename,
-            sizeof(filename));
-
-    printf("Request for %s\n", filename);
-
-    if (recv_len <= 0) {
+    if (recv_line(client_sock, filename, MAX_LINE) <= 0) {
         return -1;
     }
 
-
-    // Retrieve the file size
-    fp = fopen(filename, "rb");
-    if (!fp) {
-        send_uint32(client_sock, 0);
-        return -1;
-    }
-
-    fseek(fp, 0L, SEEK_END);
-    file_length = ftell(fp);
-
-    // Send the file size to the client
-    send_uint32(client_sock, file_length);
-
-    // Send each byte to the client
-    rewind(fp);
-    int read_len;
-    for (i = 0; i < file_length; ++i) {
-        read_len = fread(&current_byte, 1, 1, fp);
-        if (read_len <= 0) {
-            // send 0 to keep the client in sync
-            send_byte(client_sock, 0);
-            continue;
-        }
-
-        send_byte(client_sock, current_byte);
-    }
-
+    send_file(client_sock, filename);
+    free(filename);
     return 0;
+}
+
+int handle_put_file (int client_socket) {
+    printf("Handling put command\n");
+
+    printf( "Sending PUT code\n");
+    send_byte(client_socket, PUT_FILE_CODE);
+    return recv_file(client_socket);
 }
 
 /**
@@ -84,23 +48,27 @@ int handle_file_request (int client_sock) {
  * @return           Success status
  */
 int get_num_items_in_dir(char *dir, int *num_items) {
-    struct dirent *entry;
-    DIR *dirp;
+    struct dirent *entry; // A single directory itemj
+    DIR           *dirp;  // A pointer to a directory structure
 
+    // Open the directory
     dirp = opendir(dir);
     if (dirp == NULL) {
         perror("opendir");
         return -1;
     }
 
+    // Retrieve the number of items in the current directory
     *num_items = 0;
     while ( (entry = readdir(dirp)) ) {
         if (entry->d_name[0] == '.') {
             continue;
         }
+
         ++*num_items;
     }
 
+    // Close the directory
     closedir(dirp);
     return 0;
 }
@@ -111,10 +79,10 @@ int get_num_items_in_dir(char *dir, int *num_items) {
  * @return              Success status
  */
 int handle_file_list_request (int client_sock) {
-    struct dirent *entry;
-    DIR           *dirp;
-    int            num_items;
-    int            i;
+    struct dirent *entry;     // A single directory item
+    DIR           *dirp;      // Pointer to the dir structure
+    int            num_items; // The number of items in the directory
+    unsigned int   i;         // Looping variable
 
     // Get the number of visible items in the directory
     if (get_num_items_in_dir(".", &num_items) < 0) {
@@ -228,6 +196,10 @@ int handle_connection (int sock, struct sockaddr_in *sin) {
 
             case FILE_REQ_CODE:
                 handle_file_request(client_sock);
+                break;
+
+            case PUT_FILE_CODE:
+                handle_put_file(client_sock);
                 break;
 
             default:

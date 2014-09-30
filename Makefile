@@ -8,3 +8,4 @@ helper.o: helper.c helper.h
 clean:
 	rm -f client
 	rm -f server
+	rm -f *.o
