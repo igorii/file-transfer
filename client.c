@@ -50,9 +50,7 @@ int request_file_list (int sock, int connection) {
 int request_put (int sock, char *filename) {
     byte         response;      // The acknowledgement from the other
 
-    printf("Sending PUT code\n");
     send_byte(sock, PUT_FILE_CODE);
-    printf("Receiving PUT code\n");
 
     // Receive the incoming file acknowledgement
     if (recv_byte(sock, &response) <= 0)
@@ -61,7 +59,6 @@ int request_put (int sock, char *filename) {
     if (response != PUT_FILE_CODE)
         return -1;
 
-    printf("Sending %s\n", filename);
     send_file(sock, filename);
     return 0;
 }
@@ -88,8 +85,6 @@ int request_file (int sock, char *filename) {
 
     // Send the file we are requesting
     send_line(sock, filename, strlen(filename));
-
-    printf("Calling receive_file\n");
     recv_file(sock);
     return 0;
 }
@@ -113,6 +108,7 @@ menu_option handle_input (char *hostname, char *arg, int size) {
 
     // Printf the prompt
     printf("file-serve(%s): ", hostname);
+    fflush(stdout);
 
     // Get the user input
     fgets(input, sizeof(input), stdin);
@@ -244,7 +240,7 @@ int main (int argc, char* argv[]) {
                 break;
 
             default:
-                printf("nyi2\n");
+                fprintf(stderr, "[!!] Unknown command\n");
                 break;
         }
     }

@@ -34,9 +34,6 @@ int handle_file_request (int client_sock) {
 }
 
 int handle_put_file (int client_socket) {
-    printf("Handling put command\n");
-
-    printf( "Sending PUT code\n");
     send_byte(client_socket, PUT_FILE_CODE);
     return recv_file(client_socket);
 }

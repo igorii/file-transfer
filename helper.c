@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "helper.h"
 
@@ -98,8 +99,6 @@ int send_file (int sock, char *filename) {
     unsigned int  file_length;
     unsigned int  i;
 
-    printf("Sending FILENAME\n");
-
     send_line(sock, filename, strlen(filename));
 
     // Open the file to determine the number of bytes that
@@ -113,7 +112,10 @@ int send_file (int sock, char *filename) {
     fseek(fp, 0L, SEEK_END);
     file_length = ftell(fp);
 
-    printf("Sending SIZE\n");
+#if DEBUG
+    printf("Sending %s | %d bytes | ... ", filename, file_length);
+    fflush(stdout);
+#endif
 
     // Send the file size to the client
     send_uint32(sock, file_length);
@@ -129,9 +131,21 @@ int send_file (int sock, char *filename) {
             continue;
         }
 
+#if DEBUG
+        printf("\rSending %s | %d bytes | %d%%... ", filename, file_length,
+                (int) (100 * floor((i + 1) / file_length)));
+        fflush(stdout);
+#endif
+
         send_byte(sock, current_byte);
     }
 
+    // Close the file
+    fclose(fp);
+
+#if DEBUG
+    printf("Done.\n");
+#endif
     return 0;
 }
 
@@ -145,14 +159,10 @@ int recv_file (int sock) {
 
     filename = (char *) malloc (MAX_LINE);
 
-    printf("Receving FILENAME\n");
-
     // receive filename
     if (recv_line(sock, filename, MAX_LINE) <= 0) {
         return -1;
     }
-
-    printf("Receing SIZE\n");
 
     // Receive the incoming file length
     if (recv_uint32(sock, &file_length) <= 0)
@@ -164,27 +174,39 @@ int recv_file (int sock) {
         return -1;
     }
 
+#if DEBUG
+    printf("Receiving %s | %d bytes | ... ", filename, file_length);
+    fflush(stdout);
+#endif
+
     // If it does exist, open a local copy as binary
-    printf("Opening %s\n", filename);
     fp = fopen(filename, "wb+");
     if (!fp) {
         return -1;
     }
 
-    printf("Receiving %d bytes\n", file_length);
     // Loop over each byte and write the received byte to the local file
     for (i = 0; i < file_length; ++i) {
         recv_len = recv_byte(sock, &current_byte);
         if (recv_len <= 0) {
-            // TODO
             fclose(fp);
             return -1;
         }
+
+#if DEBUG
+        printf("\rReceiving %s | %d bytes | %d%%... ", filename, file_length,
+                (int) (100 * floor((i + 1) / file_length)));
+        fflush(stdout);
+#endif
         fwrite(&current_byte, 1, 1, fp);
     }
 
     // Close the local file when finished
     fclose(fp);
     free(filename);
+
+#if DEBUG
+    printf("Done.\n");
+#endif
     return 0;
 }
