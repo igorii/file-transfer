@@ -1,11 +1,14 @@
-all: helper.o
-	gcc -o client client.c helper.o -Wall -Werror -lm
-	gcc -o server server.c helper.o -Wall -Werror -lm
+all: dirs helper.o
+	gcc -o bin/client client/client.c obj/helper.o -Wall -Werror -lm -Ilib
+	gcc -o bin/server server/server.c obj/helper.o -Wall -Werror -lm -Ilib
 
-helper.o: helper.c helper.h
-	gcc -c helper.c
+dirs:
+	mkdir -p obj
+	mkdir -p bin
+
+helper.o: lib/helper.c lib/helper.h
+	gcc -c lib/helper.c -o obj/helper.o
 
 clean:
-	rm -f client
-	rm -f server
-	rm -f *.o
+	rm -rf obj
+	rm -rf bin
