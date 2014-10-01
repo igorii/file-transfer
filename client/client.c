@@ -48,7 +48,7 @@ int request_file_list (int sock, int connection) {
 }
 
 int request_put (int sock, char *filename) {
-    byte         response;      // The acknowledgement from the other
+    byte response; // The acknowledgement from the other
 
     send_byte(sock, PUT_FILE_CODE);
 
@@ -59,8 +59,7 @@ int request_put (int sock, char *filename) {
     if (response != PUT_FILE_CODE)
         return -1;
 
-    send_file(sock, filename);
-    return 0;
+    return send_file(sock, filename);
 }
 
 
@@ -71,7 +70,7 @@ int request_put (int sock, char *filename) {
  * @return Success status
  */
 int request_file (int sock, char *filename) {
-    byte         response;      // The acknowledgement from the other
+    byte response; // The acknowledgement from the other
 
     // Send the file request code
     send_byte(sock, FILE_REQ_CODE);
@@ -83,10 +82,11 @@ int request_file (int sock, char *filename) {
     if (response != FILE_REQ_CODE)
         return -1;
 
-    // Send the file we are requesting
+    // Send the filename we are requesting
     send_line(sock, filename, strlen(filename));
-    recv_file(sock);
-    return 0;
+
+    // Receive the file
+    return recv_file(sock);
 }
 
 
@@ -197,9 +197,12 @@ int setup (char *host, int *sock, int *conn) {
 }
 
 int main (int argc, char* argv[]) {
-    char *host;
-    int sock, conn, result;
     menu_option current_option;
+    char        arg[256];
+    char       *host;
+    int         sock,
+                conn,
+                result;
 
     // Get server hostname
     if (argc == 2) {
@@ -210,13 +213,18 @@ int main (int argc, char* argv[]) {
     }
 
     // Initialize the connection
+    printf("Connecting...");
+    fflush(stdout);
+
     result = setup(host, &sock, &conn);
     if (result < 0) {
+        fprintf(stderr, "\nCould not connect to %s:%d\n", host, SERVER_PORT);
         exit(1);
     }
 
+    printf("\rConnected to %s:%d\n", host, SERVER_PORT);
+
     // Request the desired action from the user
-    char arg[256];
     for (;;) {
         current_option = handle_input(host, arg, sizeof(arg));
 
@@ -226,6 +234,8 @@ int main (int argc, char* argv[]) {
                 close(sock);
                 exit(1);
                 break;
+
+            // TODO - handle errors from commands (when return is < 0)
 
             case LISTFILES:
                 request_file_list(sock, conn);
