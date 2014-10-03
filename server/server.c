@@ -148,14 +148,14 @@ int handle_file_list_request (int client_sock) {
  * @param sin   A pointer to the sockaddr struct
  * @return      Success status
  */
-int setup (int *sock, struct sockaddr_in *sin) {
+int setup (int *sock, struct sockaddr_in *sin, unsigned short port) {
     int bind_result;
 
     // Build address data structure
     memset(sin, 0, sizeof(*sin));
     sin->sin_family      = AF_INET;
     sin->sin_addr.s_addr = INADDR_ANY;
-    sin->sin_port        = htons(SERVER_PORT);
+    sin->sin_port        = htons(port);
 
     // Open the socket
     *sock = socket(PF_INET, SOCK_STREAM, 0);
@@ -234,24 +234,29 @@ int handle_connection (int sock, struct sockaddr_in *sin) {
 }
 
 int main (int argc, char *argv[]) {
-    struct sockaddr_in sin;
-    int sock, result;
+    struct sockaddr_in sin;    // Address struct
+    unsigned short     port;   // Port number
+    int                sock;   // Socket descriptor
 
-    // Setup the socket
-    result = setup(&sock, &sin);
-    if (result < 0) {
+    // Get server hostname
+    if (argc == 2) {
+        port = atoi(argv[1]);  // Extract the port number
+    } else {
+        fprintf(stderr, "Usage: %s <port>\n", argv[0]);
         exit(1);
     }
+
+    // Setup the socket
+    if (setup(&sock, &sin, port) < 0)
+        exit(1);
 
     // Continuously handle connections
     for (;;) {
 
         // Handle one connection
-        result = handle_connection(sock, &sin);
-        if (result < 0) {
+        if (handle_connection(sock, &sin) < 0)
             exit (1);
-        }
     }
 
-    return 0;
+    return 0; // Never reached
 }

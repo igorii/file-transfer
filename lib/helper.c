@@ -108,7 +108,7 @@ int send_file (int sock, char *filename) {
     fseek(fp, 0L, SEEK_END);
     file_length = ftell(fp);
 
-#if DEBUG
+#if VERBOSE
     printf("Sending %s | %d bytes | ... ", filename, file_length);
     fflush(stdout);
 #endif
@@ -127,7 +127,7 @@ int send_file (int sock, char *filename) {
             continue;
         }
 
-#if DEBUG
+#if VERBOSE
         printf("\rSending %s | %d bytes | %d%%... ", filename, file_length,
                 (int) (100 * floor((i + 1) / file_length)));
         fflush(stdout);
@@ -139,7 +139,7 @@ int send_file (int sock, char *filename) {
     // Close the file
     fclose(fp);
 
-#if DEBUG
+#if VERBOSE
     printf("Done.\n");
 #endif
     return 0;
@@ -170,7 +170,7 @@ int recv_file (int sock) {
         return -1;
     }
 
-#if DEBUG
+#if VERBOSE
     printf("Receiving %s | %d bytes | ... ", filename, file_length);
     fflush(stdout);
 #endif
@@ -189,7 +189,7 @@ int recv_file (int sock) {
             return -1;
         }
 
-#if DEBUG
+#if VERBOSE
         printf("\rReceiving %s | %d bytes | %d%%... ", filename, file_length,
                 (int) (100 * floor((i + 1) / file_length)));
         fflush(stdout);
@@ -201,7 +201,7 @@ int recv_file (int sock) {
     fclose(fp);
     free(filename);
 
-#if DEBUG
+#if VERBOSE
     printf("Done.\n");
 #endif
     return 0;

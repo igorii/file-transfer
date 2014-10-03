@@ -6,8 +6,7 @@
 #include <string.h>
 
 #define MAX_LINE 246
-#define SERVER_PORT 6005
-#define DEBUG 1
+#define VERBOSE 1
 
 typedef unsigned char byte;
 

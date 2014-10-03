@@ -78,7 +78,7 @@ menu_option handle_input (char *hostname, char *arg, int size) {
 
     // Handle file rename requests
     } else if (strncmp(file_rename_cmd, input, strlen(file_rename_cmd)) == 0) {
-        return handle_cmd_with_arg(PUTFILE, input,
+        return handle_cmd_with_arg(RENAMEFILE, input,
                 file_rename_cmd, file_rename_cmd_len,
                 arg, "rename <filename>");
 
