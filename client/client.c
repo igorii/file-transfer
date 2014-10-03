@@ -38,8 +38,7 @@ int main (int argc, char* argv[]) {
     printf("Connecting...");
     fflush(stdout);
 
-    result = setup(host, portnum, &sock, &conn);
-    if (result < 0) {
+    if (setup(host, portnum, &sock, &conn) < 0)
         fprintf(stderr, "\nCould not connect to %s:%d\n", host, portnum);
         exit(1);
     }
@@ -71,7 +70,7 @@ int main (int argc, char* argv[]) {
                 break;
 
             case RENAMEFILE:
-                request_rename(sock, arg);
+                if (request_rename(sock, arg) < 0) fatal("[!! Request Rename failed.");
                 break;
 
             default:
