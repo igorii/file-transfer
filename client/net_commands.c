@@ -11,7 +11,39 @@
 /**
  * @return Success status
  */
-int request_file_list (int sock, int connection) {
+int request_rename (int sock, char *filename) {
+    char new_filename[MAX_LINE];  // Input for the new filename
+    byte response;                // The acknowledgement from the other
+
+    printf("  to: ");
+    fgets(new_filename, MAX_LINE, stdin);
+    new_filename[strlen(new_filename) - 1] = '\0';
+
+    // Send the file request code
+    send_byte(sock, FILE_RENAME_CODE);
+
+    // Receive the incoming file acknowledgement
+    if (recv_byte(sock, &response) <= 0)
+        return -1;
+
+    if (response != FILE_RENAME_CODE)
+        return -1;
+
+    // Send the filename we are renaming
+    if (send_line(sock, filename, strlen(filename)) < 0)
+        return -1;
+
+    // Send the new filename
+    if (send_line(sock, new_filename, strlen(new_filename)) < 0)
+        return -1;
+
+    return 0;
+}
+
+/**
+ * @return Success status
+ */
+int request_file_list (int sock) {
     char    *buffer;
     int      len;
     int      i;

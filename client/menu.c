@@ -16,7 +16,13 @@ menu_option handle_input (char *hostname, char *arg, int size) {
     const char *file_list_cmd      = "ls\0";
     const char *file_retrieval_cmd = "get\0";
     const char *file_send_cmd      = "put\0";
+    const char *file_rename_cmd    = "rename\0";
     const char *exit_cmd           = "exit\0";
+
+    const int file_list_cmd_len      = strlen(file_list_cmd);
+    const int file_retrieval_cmd_len = 1 + strlen(file_retrieval_cmd);
+    const int file_send_cmd_len      = 1 + strlen(file_send_cmd);
+    const int file_rename_cmd_len    = 1 + strlen(file_rename_cmd);
 
     // Printf the prompt
     printf("file-serve(%s): ", hostname);
@@ -36,11 +42,11 @@ menu_option handle_input (char *hostname, char *arg, int size) {
 
         // The input for get must be longer than the length of
         // "get " since it requires a filename argument
-        //
-        // TODO - figure this out
-        if (strlen(input) > 4) {
-            memcpy(arg, input + 4, strlen(input) - 4);
-            arg[strlen(input) - 5] = '\0';
+        if (strlen(input) > file_retrieval_cmd_len) {
+            memcpy(arg,
+                    input + file_retrieval_cmd_len,
+                    strlen(input) - file_retrieval_cmd_len);
+            arg[strlen(input) - (1 + file_retrieval_cmd_len)] = '\0';
             return GETFILE;
         } else {
             fprintf(stderr, "\tUse: 'get <filename>'\n");
@@ -50,13 +56,28 @@ menu_option handle_input (char *hostname, char *arg, int size) {
     } else if (strncmp(file_send_cmd, input,
                 strlen(file_send_cmd)) == 0) {
 
-        // TODO - figure this out
-        if (strlen(input) > 4) {
-            memcpy(arg, input + 4, strlen(input) - 4);
-            arg[strlen(input) - 5] = '\0';
+        if (strlen(input) > file_send_cmd_len) {
+            memcpy(arg,
+                    input + file_send_cmd_len,
+                    strlen(input) - file_send_cmd_len);
+            arg[strlen(input) - (1 + file_send_cmd_len)] = '\0';
             return PUTFILE;
         } else {
             fprintf(stderr, "\tUse: 'put <filename>'\n");
+        }
+    }
+
+    // Handle file rename requests
+    else if (strncmp(file_rename_cmd, input,
+                strlen(file_rename_cmd)) == 0) {
+        if (strlen(input) > file_rename_cmd_len) {
+            memcpy(arg,
+                    input + file_rename_cmd_len,
+                    strlen(input) - file_rename_cmd_len);
+            arg[strlen(input) - (1 + file_rename_cmd_len)] = '\0';
+            return RENAMEFILE;
+        } else {
+            fprintf(stderr, "\tUse: 'rename <filename>'\n");
         }
     } else if (strncmp(exit_cmd, input, strlen(exit_cmd)) == 0) {
         return QUIT;

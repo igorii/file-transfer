@@ -2,7 +2,13 @@
 #define _MENU_
 
 /* Menu action enum */
-typedef enum {QUIT, LISTFILES, GETFILE, PUTFILE} menu_option;
+typedef enum {
+    QUIT,
+    LISTFILES,
+    GETFILE,
+    PUTFILE,
+    RENAMEFILE
+} menu_option;
 
 menu_option handle_input (char *hostname, char *arg, int size);
 

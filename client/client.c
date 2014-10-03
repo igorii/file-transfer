@@ -53,7 +53,7 @@ int main (int argc, char* argv[]) {
             // TODO - handle errors from commands (when return is < 0)
 
             case LISTFILES:
-                request_file_list(sock, conn);
+                request_file_list(sock);
                 break;
 
             case GETFILE:
@@ -62,6 +62,10 @@ int main (int argc, char* argv[]) {
 
             case PUTFILE:
                 request_put(sock, arg);
+                break;
+
+            case RENAMEFILE:
+                request_rename(sock, arg);
                 break;
 
             default:

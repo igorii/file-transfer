@@ -11,6 +11,28 @@
 
 #define MAX_PENDING 5
 
+int handle_file_rename(int client_sock) {
+    char filename[MAX_LINE];      // Old filename
+    char new_filename[MAX_LINE];  // New filename
+
+    // Send the file request acknowledgement
+    send_byte(client_sock, FILE_RENAME_CODE);
+
+    // Receive the old file name
+    if (recv_line(client_sock, filename, MAX_LINE) <= 0) {
+        return -1;
+    }
+
+    // Receive the new file name
+    if (recv_line(client_sock, new_filename, MAX_LINE) <= 0) {
+        return -1;
+    }
+
+    // Rename the file
+    rename(filename, new_filename);
+    return 0;
+}
+
 /**
  * Handles a request for an individual file
  * @param client_sock A socket connection
@@ -28,6 +50,7 @@ int handle_file_request (int client_sock) {
         return -1;
     }
 
+    // Send the file and free the buffer
     send_file(client_sock, filename);
     free(filename);
     return 0;
@@ -199,8 +222,12 @@ int handle_connection (int sock, struct sockaddr_in *sin) {
                 handle_put_file(client_sock);
                 break;
 
+            case FILE_RENAME_CODE:
+                handle_file_rename(client_sock);
+                break;
+
             default:
-                fprintf(stderr, "Unknown request [%d]\n", (int)code);
+                fprintf(stderr, "[!!] Unknown request [%d]\n", (int)code);
         }
     }
 
