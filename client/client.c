@@ -50,18 +50,16 @@ int main (int argc, char* argv[]) {
                 exit(1);
                 break;
 
-            // TODO - handle errors from commands (when return is < 0)
-
             case LISTFILES:
-                request_file_list(sock);
+                if (request_file_list(sock) < 0) fprintf(stderr, "[!!] Request File List failed.");
                 break;
 
             case GETFILE:
-                request_file(sock, arg);
+                if (request_file(sock, arg) < 0) fprintf(stderr, "[!!] Request Get File failed.");
                 break;
 
             case PUTFILE:
-                request_put(sock, arg);
+                if (request_put(sock, arg) < 0) fprintf(stderr, "[!!] Request Put File failed.");
                 break;
 
             case RENAMEFILE:

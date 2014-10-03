@@ -43,21 +43,20 @@ int handle_file_request (int client_sock) {
     filename = (char *) malloc (MAX_LINE);
 
     // Send the file request acknowledgement
-    send_byte(client_sock, FILE_REQ_CODE);
+    if (send_byte(client_sock, FILE_REQ_CODE) < 0) return -1;
 
     // Receive the file name
-    if (recv_line(client_sock, filename, MAX_LINE) <= 0) {
-        return -1;
-    }
+    if (recv_line(client_sock, filename, MAX_LINE) < 0) return -1;
 
-    // Send the file and free the buffer
-    send_file(client_sock, filename);
+    // Send the file
+    if (send_file(client_sock, filename) < 0) return -1;
+
     free(filename);
     return 0;
 }
 
 int handle_put_file (int client_socket) {
-    send_byte(client_socket, PUT_FILE_CODE);
+    if (send_byte(client_socket, PUT_FILE_CODE) < 0) return -1;
     return recv_file(client_socket);
 }
 
@@ -110,7 +109,7 @@ int handle_file_list_request (int client_sock) {
     }
 
     // Send the number of visible items
-    send_uint32(client_sock, (uint32_t)num_items);
+    if (send_uint32(client_sock, (uint32_t)num_items) < 0) return -1;
 
     // Open the directory before sending each item
     dirp = opendir(".");
@@ -126,7 +125,7 @@ int handle_file_list_request (int client_sock) {
         // If the read failed, the item count changed somehow, so send an
         // empty line to keep the client in sync with the protocol
         if (!entry) {
-            send_line(client_sock, "", 0);
+            if (send_line(client_sock, "", 0) < 0) return -1;
         }
 
         // Invisible entries should not count towards the total
@@ -136,7 +135,7 @@ int handle_file_list_request (int client_sock) {
         }
 
         // Otherwise, send the entry to the client
-        send_line(client_sock, entry->d_name, strlen(entry->d_name));
+        if (send_line(client_sock, entry->d_name, strlen(entry->d_name)) < 0) return -1;
     }
 
     // Cleanup the directory

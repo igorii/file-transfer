@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -11,8 +10,7 @@
 /* ************** */
 
 int send_byte (int sock, byte value) {
-    send(sock, &value, 1, 0);
-    return 0;
+    return send(sock, &value, 1, 0);
 }
 
 /**
@@ -31,8 +29,7 @@ int recv_byte (int sock, byte *value) {
  */
 int send_uint32(int sock, uint32_t value) {
     uint32_t to_send = htonl(value);
-    send(sock, &to_send, sizeof(uint32_t), 0);
-    return 0;
+    return send(sock, &to_send, sizeof(uint32_t), 0);
 }
 
 /**
@@ -58,8 +55,7 @@ int send_line (int sock, char *buffer, int size) {
     char to_send[size + 1];
     memcpy(to_send, buffer, size);
     to_send[size] = '\n';
-    send(sock, to_send, sizeof(to_send), 0);
-    return 0;
+    return send(sock, to_send, sizeof(to_send), 0);
 }
 
 /**
@@ -99,13 +95,13 @@ int send_file (int sock, char *filename) {
     unsigned int  file_length;
     unsigned int  i;
 
-    send_line(sock, filename, strlen(filename));
+    if (send_line(sock, filename, strlen(filename)) < 0) return -1;
 
     // Open the file to determine the number of bytes that
     // need to be sent
     fp = fopen(filename, "rb");
     if (!fp) {
-        send_uint32(sock, 0);
+        if (send_uint32(sock, 0) < 0) return -1;
         return -1;
     }
 
@@ -118,7 +114,7 @@ int send_file (int sock, char *filename) {
 #endif
 
     // Send the file size to the client
-    send_uint32(sock, file_length);
+    if (send_uint32(sock, file_length) < 0) return -1;
 
     // Send each byte to the client starting from the start
     rewind(fp);
@@ -127,7 +123,7 @@ int send_file (int sock, char *filename) {
         if (read_len <= 0) {
 
             // send 0 to keep the client in sync
-            send_byte(sock, 0);
+            if (send_byte(sock, 0) < 0) return -1;
             continue;
         }
 
@@ -137,7 +133,7 @@ int send_file (int sock, char *filename) {
         fflush(stdout);
 #endif
 
-        send_byte(sock, current_byte);
+        if (send_byte(sock, current_byte) < 0) return -1;
     }
 
     // Close the file
