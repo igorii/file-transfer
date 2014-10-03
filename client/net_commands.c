@@ -18,7 +18,7 @@ int request_file_list (int sock, int connection) {
     uint32_t num_items;
 
     // Send the operation code
-    send_byte(sock, DIR_LIST_CODE);
+    if (send_byte(sock, DIR_LIST_CODE) < 0) return -1;
 
     // Store the number of files being received
     len = recv_uint32(sock, &num_items);
@@ -47,7 +47,7 @@ int request_file_list (int sock, int connection) {
 int request_put (int sock, char *filename) {
     byte response; // The acknowledgement from the other
 
-    send_byte(sock, PUT_FILE_CODE);
+    if (send_byte(sock, PUT_FILE_CODE) < 0) return -1;
 
     // Receive the incoming file acknowledgement
     if (recv_byte(sock, &response) <= 0)
@@ -70,7 +70,7 @@ int request_file (int sock, char *filename) {
     byte response; // The acknowledgement from the other
 
     // Send the file request code
-    send_byte(sock, FILE_REQ_CODE);
+    if (send_byte(sock, FILE_REQ_CODE) < 0) return -1;
 
     // Receive the incoming file acknowledgement
     if (recv_byte(sock, &response) <= 0)
@@ -80,7 +80,7 @@ int request_file (int sock, char *filename) {
         return -1;
 
     // Send the filename we are requesting
-    send_line(sock, filename, strlen(filename));
+    if (send_line(sock, filename, strlen(filename)) < 0) return -1;
 
     // Receive the file
     return recv_file(sock);
