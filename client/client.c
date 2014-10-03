@@ -10,6 +10,8 @@
 #include "menu.h"
 #include "net_commands.h"
 
+#define BUFSIZE 1024
+
 int fatal(char *message) {
     fprintf(stderr, "%s\n", message);
     exit(1);
@@ -17,13 +19,11 @@ int fatal(char *message) {
 
 int main (int argc, char* argv[]) {
     menu_option current_option;   // Menu action
-    char        arg[256];         // Menu action argument
+    char        arg[BUFSIZE];     // Menu action argument
     char       *host;             // Hostname to connect to
     short       portnum;          // Port of the server
     int         sock,             // Socket to host
-                conn,             // Connection to the host
-                result;           // Storage for the success
-                                  //     status of commands
+                conn;             // Connection to the host
 
     // Get server hostname
     if (argc == 3) {
@@ -38,7 +38,7 @@ int main (int argc, char* argv[]) {
     printf("Connecting...");
     fflush(stdout);
 
-    if (setup(host, portnum, &sock, &conn) < 0)
+    if (setup(host, portnum, &sock, &conn) < 0) {
         fprintf(stderr, "\nCould not connect to %s:%d\n", host, portnum);
         exit(1);
     }
