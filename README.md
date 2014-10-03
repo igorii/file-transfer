@@ -28,4 +28,5 @@ Once a server has been started, clients may connect to it to send and receive fi
     * create a local copy of the remote file
 * put *filename*
     * create a remote copy of the local file
-* rename *filename*   # This will prompt for a new name
+* rename *filename*
+    * Rename a remote file. This will prompt for a new name
