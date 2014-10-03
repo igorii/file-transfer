@@ -16,17 +16,16 @@ int handle_file_rename(int client_sock) {
     char new_filename[MAX_LINE];  // New filename
 
     // Send the file request acknowledgement
-    send_byte(client_sock, FILE_RENAME_CODE);
+    if (send_byte(client_sock, FILE_RENAME_CODE) < 0)
+        return -1;
 
     // Receive the old file name
-    if (recv_line(client_sock, filename, MAX_LINE) <= 0) {
+    if (recv_line(client_sock, filename, MAX_LINE) <= 0)
         return -1;
-    }
 
     // Receive the new file name
-    if (recv_line(client_sock, new_filename, MAX_LINE) <= 0) {
+    if (recv_line(client_sock, new_filename, MAX_LINE) <= 0)
         return -1;
-    }
 
     // Rename the file
     rename(filename, new_filename);

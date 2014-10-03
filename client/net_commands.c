@@ -20,7 +20,8 @@ int request_rename (int sock, char *filename) {
     new_filename[strlen(new_filename) - 1] = '\0';
 
     // Send the file request code
-    send_byte(sock, FILE_RENAME_CODE);
+    if (send_byte(sock, FILE_RENAME_CODE) < 0)
+        return -1;
 
     // Receive the incoming file acknowledgement
     if (recv_byte(sock, &response) <= 0)
