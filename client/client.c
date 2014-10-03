@@ -10,20 +10,27 @@
 #include "menu.h"
 #include "net_commands.h"
 
+int fatal(char *message) {
+    fprintf(stderr, "%s\n", message);
+    exit(1);
+}
+
 int main (int argc, char* argv[]) {
     menu_option current_option;   // Menu action
     char        arg[256];         // Menu action argument
     char       *host;             // Hostname to connect to
+    short       portnum;          // Port of the server
     int         sock,             // Socket to host
                 conn,             // Connection to the host
                 result;           // Storage for the success
                                   //     status of commands
 
     // Get server hostname
-    if (argc == 2) {
-        host = argv[1];
+    if (argc == 3) {
+        host    = argv[1];        // Extract the hostname
+        portnum = atoi(argv[2]);  // Extract the port number
     } else {
-        fprintf(stderr, "Usage: %s host\n", argv[0]);
+        fprintf(stderr, "Usage: %s <host> <port>\n", argv[0]);
         exit(1);
     }
 
@@ -31,13 +38,13 @@ int main (int argc, char* argv[]) {
     printf("Connecting...");
     fflush(stdout);
 
-    result = setup(host, &sock, &conn);
+    result = setup(host, portnum, &sock, &conn);
     if (result < 0) {
-        fprintf(stderr, "\nCould not connect to %s:%d\n", host, SERVER_PORT);
+        fprintf(stderr, "\nCould not connect to %s:%d\n", host, portnum);
         exit(1);
     }
 
-    printf("\rConnected to %s:%d\n", host, SERVER_PORT);
+    printf("\rConnected to %s:%d\n", host, portnum);
 
     // Request the desired action from the user
     for (;;) {
@@ -45,21 +52,22 @@ int main (int argc, char* argv[]) {
 
         switch (current_option) {
 
+            // Close the socket before quitting
             case QUIT:
                 close(sock);
                 exit(1);
                 break;
 
             case LISTFILES:
-                if (request_file_list(sock) < 0) fprintf(stderr, "[!!] Request File List failed.");
+                if (request_file_list(sock) < 0) fatal("[!!] Request File List failed.");
                 break;
 
             case GETFILE:
-                if (request_file(sock, arg) < 0) fprintf(stderr, "[!!] Request Get File failed.");
+                if (request_file(sock, arg) < 0) fatal("[!!] Request Get File failed.");
                 break;
 
             case PUTFILE:
-                if (request_put(sock, arg) < 0) fprintf(stderr, "[!!] Request Put File failed.");
+                if (request_put(sock, arg) < 0) fatal("[!!] Request Put File failed.");
                 break;
 
             case RENAMEFILE:
