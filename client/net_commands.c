@@ -113,7 +113,8 @@ int request_file (int sock, char *filename) {
     byte response; // The acknowledgement from the other
 
     // Send the file request code
-    if (send_byte(sock, FILE_REQ_CODE) < 0) return -1;
+    if (send_byte(sock, FILE_REQ_CODE) < 0)
+        return -1;
 
     // Receive the incoming file acknowledgement
     if (recv_byte(sock, &response) <= 0)
@@ -123,7 +124,8 @@ int request_file (int sock, char *filename) {
         return -1;
 
     // Send the filename we are requesting
-    if (send_line(sock, filename, strlen(filename)) < 0) return -1;
+    if (send_line(sock, filename, strlen(filename)) < 0)
+        return -1;
 
     // Receive the file
     return recv_file(sock);
